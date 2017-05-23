@@ -1,0 +1,22 @@
+{
+  "name": "slack-oubliette",
+  "version": "1.0.0",
+  "main": "server.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "concurrently \"npm run -S server\" \"cd client && npm start\"",
+    "server": "node server.js"
+  },
+  "dependencies": {
+    "@slack/client": "^3.9.0",
+    "apicache": "^0.8.4",
+    "concurrently": "^3.4.0",
+    "cors": "^2.8.3",
+    "dotenv": "^4.0.0",
+    "express": "^4.15.3",
+    "humanize": "^0.0.9",
+    "json-query": "^2.2.2",
+    "lodash": "^4.17.4",
+    "rxjs": "^5.4.0"
+  }
+}
