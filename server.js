@@ -1,33 +1,32 @@
-const express = require('express');
-const SlackClients = require('./slack-clients');
-const SlackStreams = require('./slack-info');
-const Sorters = require('./sorters');
-const Filter = require('./filter');
-const pick = require('lodash/fp/pick');
-const humanize = require('humanize');
-const apicache = require('apicache');
-const cors = require('cors');
+const express = require("express");
+const SlackClients = require("./slack-clients");
+const SlackStreams = require("./slack-info");
+const Sorters = require("./sorters");
+const Filter = require("./filter");
+const pick = require("lodash/fp/pick");
+const humanize = require("humanize");
+const apicache = require("apicache");
+const sharedConfig = require('./client/src/shared-config.json');
 
-console.log('Starting up...');
+console.log("Starting up...");
 const app = express();
-app.set('json spaces', 1);
-app.use(cors());
+// app.set("json spaces", 1);
 
 const attrs = [
-  'id',
-  'created',
-  'name',
-  'title',
-  'filetype',
-  'size',
-  'thumb_80',
-  'url_private',
-  'pinned_to',
-  'channels',
-  'username'
+  "id",
+  "created",
+  "name",
+  "title",
+  "filetype",
+  "size",
+  `thumb_${sharedConfig.thumbSize}`,
+  "url_private",
+  "pinned_to",
+  "channels",
+  "username"
 ];
 
-const totalOn = ['filetype', 'username'];
+const totalOn = ["filetype", "username"];
 
 function totalize(items) {
   return {
@@ -45,21 +44,21 @@ function toRecord(row) {
   return record;
 }
 
-console.log('Creating sorters...');
+console.log("Creating sorters...");
 const sorters = Sorters(attrs, {
   exceptions: {
-    channels: Sorters.lexical('length'),
-    pinned_to: Sorters.lexical('length')
+    channels: Sorters.lexical("length"),
+    pinned_to: Sorters.lexical("length")
   }
 });
 
-console.log('Creating filter...');
+console.log("Creating filter...");
 const filterOn = Filter();
 
-console.log('Creating Slack clients...')
+console.log("Creating Slack clients...");
 const clients = SlackClients();
 
-console.log('Initial files cache load...')
+console.log("Initial files cache load...");
 const streams = SlackStreams(clients, toRecord);
 
 var records;
@@ -73,7 +72,7 @@ streams.records$.subscribe(
   },
   function(e) {
     error = e;
-    console.error('Received error on records stream!', e);
+    console.error("Received error on records stream!", e);
     apicache.clear();
   }
 );
@@ -85,54 +84,58 @@ var cache = apicache
       include: [200]
     }
   })
-  .middleware('1 day');
+  .middleware("1 day");
 
-app.get('/', cache, function(req, res) {
+app.get("/files", cache, function(req, res) {
   if (!records) {
-    return res.status(503).send('Cache warming up. Please wait.');
+    return res.status(503).send("Cache warming up. Please wait.");
   }
   var items = records.slice();
   var sort = req.query.sort;
   if (sort) {
     let sorter = sorters(sort);
     if (!sorter) {
-      return res.status(400).send(`No sorter found matching ${req.query.sort}. Valid sorters are ${sorters.valid}`);
+      return res
+        .status(400)
+        .send(
+          `No sorter found matching ${req.query.sort}. Valid sorters are ${sorters.valid}`
+        );
     }
     items.sort(sorter);
   }
   var filter = req.query.filter;
   if (filter) {
     items = filterOn(filter, items);
-    if (typeof items === 'string') {
+    if (typeof items === "string") {
       return res.status(400).send(items);
     }
   }
-  var totals;
-  if (req.query.totals) {
-    totals = totalOn.reduce(function(out, attr) {
+  var totals = totalOn.reduce(
+    function(out, attr) {
       out[attr] = {};
       return out;
-    }, { all: { size: 0, count: 0 } });
-    items.forEach(function(item) {
-      totals.all.size += item.size;
-      totals.all.count += 1;
-      totalOn.forEach(function(attribute) {
-        var value = item[attribute];
-        if (!totals[attribute][value]) {
-          totals[attribute][value] = { size: 0, count: 0 };
-        }
-        totals[attribute][value].size += item.size;
-        totals[attribute][value].count += 1;
-      });
-    });
-    totals.all.filesize = humanize.filesize(totals.all.size);
+    },
+    { all: { size: 0, count: 0 } }
+  );
+  items.forEach(function(item) {
+    totals.all.size += item.size;
+    totals.all.count += 1;
     totalOn.forEach(function(attribute) {
-      var subtotal = totals[attribute];
-      Object.keys(subtotal).forEach(function(key) {
-        subtotal[key].filesize = humanize.filesize(subtotal[key].size);
-      });
-    })
-  }
+      var value = item[attribute];
+      if (!totals[attribute][value]) {
+        totals[attribute][value] = { size: 0, count: 0 };
+      }
+      totals[attribute][value].size += item.size;
+      totals[attribute][value].count += 1;
+    });
+  });
+  totals.all.filesize = humanize.filesize(totals.all.size);
+  totalOn.forEach(function(attribute) {
+    var subtotal = totals[attribute];
+    Object.keys(subtotal).forEach(function(key) {
+      subtotal[key].filesize = humanize.filesize(subtotal[key].size);
+    });
+  });
   res.json({
     sorted: sort,
     filtered: filter,
@@ -144,6 +147,6 @@ app.get('/', cache, function(req, res) {
 
 var port = process.env.PORT || 4001;
 app.listen(port);
-console.log('listening on port ' + port);
+console.log("listening on port " + port);
 clients.rtm.start();
-console.log('listening to slack rtm');
+console.log("listening to slack rtm");

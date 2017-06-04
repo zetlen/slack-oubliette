@@ -1,4 +1,4 @@
-const jsonQuery = require('json-query');
+const jsonQuery = require("json-query");
 
 const defaults = {};
 module.exports = function Filter(config) {
@@ -6,13 +6,10 @@ module.exports = function Filter(config) {
   return function filterOn(filter, data) {
     var result;
     try {
-      result = jsonQuery(
-        `.[*${filter}]`,
-        Object.assign({ data }, options)
-      );
+      result = jsonQuery(`.[*${filter}]`, Object.assign({ data }, options));
     } catch (e) {
       return e.toString();
     }
-    return result && result.value || [];
-  }
-}
+    return (result && result.value) || [];
+  };
+};
