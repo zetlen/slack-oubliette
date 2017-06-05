@@ -8,16 +8,13 @@ const pick = require("lodash/fp/pick");
 const humanize = require("humanize");
 const passport = require("passport");
 const SlackStrategy = require("./slack-passport-strategy");
-// const apicache = require("apicache");
 const bodyParser = require("body-parser");
-const cookieParser = require("cookie-parser");
 const session = require("express-session");
 const PromisePool = require("es6-promise-pool");
 const sharedConfig = require("./client/src/shared-config.json");
 
 console.log("Starting up...");
 const app = express();
-// app.set("json spaces", 1);
 
 // setup the strategy using defaults
 passport.use(
@@ -27,34 +24,30 @@ passport.use(
       clientSecret: process.env.SLACK_CLIENT_SECRET,
       scope: ["identity.basic"]
     },
-    function(accessToken, refreshToken, profile, done) {
-      // optionally persist profile data
-      console.log(accessToken, refreshToken, profile);
+    function (accessToken, refreshToken, profile, done) {
       done(null, profile);
     }
   )
 );
 
-var secret = "you have no power over me";
-
-app.use(require("body-parser").urlencoded({ extended: true }));
-app.use(cookieParser(secret));
-app.use(session({ secret: secret }));
-app.use(passport.initialize());
-app.use(passport.session());
-
-passport.serializeUser(function(profile, done) {
-  console.log('i serialized', profile.user.id);
+passport.serializeUser(function (profile, done) {
   done(null, profile.user.id);
 });
 
-passport.deserializeUser(function(id, done) {
-  console.log('to deserialize ', id);
-  clients.web.users.info(id, function(err, user) {
-  console.log('i deserialized ', user, err);
-    done(err, user);
+passport.deserializeUser(function (id, done) {
+  clients.web.users.info(id, function (err, profile) {
+    console.log('deserialized user @' + profile.user.name);
+    done(err, profile);
   });
 });
+
+var secret = "you have no power over me";
+
+app.use(require("body-parser").urlencoded({ extended: true }));
+// app.use(session({ secret: secret, resave: false, rolling: true, saveUninitialized: false }));
+app.use(session({ secret: secret }));
+app.use(passport.initialize());
+app.use(passport.session());
 
 const attrs = [
   "id",
@@ -74,7 +67,7 @@ const rangeOn = ["created", "size"];
 function totalize(items) {
   return {
     count: items.length,
-    size: items.reduce(function(total, item) {
+    size: items.reduce(function (total, item) {
       return total + item.size;
     }, 0)
   };
@@ -101,34 +94,24 @@ const streams = SlackStreams(clients, toRecord);
 
 var records;
 var error;
+var pending = false;
 streams.records$.subscribe(
-  function(latest) {
+  function (latest) {
     error = null;
     records = latest;
+    pending = false;
     console.log(`Received ${records.length} new records from stream`);
-    // apicache.clear();
   },
-  function(e) {
+  function (e) {
     error = e;
+    pending = false;
     console.error("Received error on records stream!", e);
-    // apicache.clear();
   }
 );
 
-// var isProd = process.env.NODE_ENV === "production";
-
-// var cache = apicache
-//   .options({
-//     debug: isProd,
-//     statusCodes: {
-//       include: [200]
-//     }
-//   })
-//   .middleware("1 minute", () => isProd);
-
 app.use(bodyParser.text());
 
-app.post("/files/delete", function(req, res) {
+app.post("/files/delete", function (req, res) {
   var toDelete = req.body.split(",");
   function deletor() {
     var next = toDelete.pop();
@@ -136,8 +119,9 @@ app.post("/files/delete", function(req, res) {
       return null;
     }
     console.log("Attempting to delete " + toDelete);
-    return clients.web.files.delete(next).then(function() {
+    return clients.web.files.delete(next).then(function () {
       console.log("Successfully deleted " + toDelete);
+      pending = true;
     });
   }
   var concurrency =
@@ -145,22 +129,30 @@ app.post("/files/delete", function(req, res) {
   var pool = new PromisePool(deletor, concurrency);
   var poolPromise = pool.start();
   poolPromise
-    .then(function() {
+    .then(function () {
       res.status(200).end();
     })
-    .catch(function(err) {
+    .catch(function (err) {
       res.status(500).send(err.toString());
     });
 });
 
 app.get(
   "/files",
-  /*cache, */ function(req, res) {
+  /*cache, */ function getFiles(req, res) {
     if (!req.user) {
-      return res.status(401).end();
+      return res.status(401).send("Unauthorized");
     }
     if (!records) {
       return res.status(503).send("Cache warming up. Please wait.");
+    }
+    if (pending) {
+      var subscription = streams.records$.subscribe(function(latest) {
+        subscription.unsubscribe();
+        records = latest;
+        getFiles(req, res);
+      });
+      return;
     }
     var items = records.slice();
     var sort = req.query.sort;
@@ -170,8 +162,8 @@ app.get(
         return res
           .status(400)
           .send(
-            `No sorter found matching ${req.query
-              .sort}. Valid sorters are ${sorters.valid}`
+          `No sorter found matching ${req.query
+            .sort}. Valid sorters are ${sorters.valid}`
           );
       }
       items.sort(sorter);
@@ -184,20 +176,20 @@ app.get(
       }
     }
     var totals = totalOn.reduce(
-      function(out, attr) {
+      function (out, attr) {
         out[attr] = {};
         return out;
       },
       { all: { size: 0, count: 0 } }
     );
-    var ranges = rangeOn.reduce(function(out, attr) {
+    var ranges = rangeOn.reduce(function (out, attr) {
       out[attr] = { min: Infinity, max: -Infinity };
       return out;
     }, {});
-    items.forEach(function(item) {
+    items.forEach(function (item) {
       totals.all.size += item.size;
       totals.all.count += 1;
-      totalOn.forEach(function(attribute) {
+      totalOn.forEach(function (attribute) {
         var value = item[attribute];
         if (!totals[attribute][value]) {
           totals[attribute][value] = { size: 0, count: 0 };
@@ -205,7 +197,7 @@ app.get(
         totals[attribute][value].size += item.size;
         totals[attribute][value].count += 1;
       });
-      rangeOn.forEach(function(attribute) {
+      rangeOn.forEach(function (attribute) {
         ranges[attribute].min = Math.min(
           ranges[attribute].min,
           item[attribute]
@@ -217,9 +209,9 @@ app.get(
       });
     });
     totals.all.filesize = humanize.filesize(totals.all.size);
-    totalOn.forEach(function(attribute) {
+    totalOn.forEach(function (attribute) {
       var subtotal = totals[attribute];
-      Object.keys(subtotal).forEach(function(key) {
+      Object.keys(subtotal).forEach(function (key) {
         subtotal[key].filesize = humanize.filesize(subtotal[key].size);
       });
     });
@@ -234,24 +226,18 @@ app.get(
   }
 );
 
-if (process.env.NODE_ENV === "production") {
+if (process.env.NODE_ENV === "production" || process.env.DEBUG_OAUTH) {
   app.use(express.static("client/build"));
-}
-
-const autt = passport.authorize("slack", { successRedirect: "/" });
-function proxyauth() {
-  return autt.apply(this, arguments);
 }
 
 app.get(
   "/slack_redirect",
-  proxyauth,
-  function(req, res) {
+  passport.authenticate('slack'),
+  function (req, res) {
     console.log("Redirecting to root");
     res.redirect("/");
   }
 );
-
 var port = process.env.PORT || 4001;
 app.listen(port);
 console.log("listening on port " + port);

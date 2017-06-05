@@ -89,7 +89,6 @@ util.inherits(Strategy, OAuth2Strategy);
  * @api protected
  */
 Strategy.prototype.userProfile = function(accessToken, done) {
-    console.log(this.profileUrl + accessToken);
   this.get(this.profileUrl + accessToken, function(err, body, res) {
     if (err) {
       console.error(err);

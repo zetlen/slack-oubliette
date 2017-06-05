@@ -37,7 +37,7 @@ function failReceiveFiles(reason) {
 function fetchFiles(options) {
   return dispatch => {
     dispatch(requestFiles(options));
-    return fetch(`${BASE}?${qs.stringify(options)}`)
+    return fetch(`${BASE}?${qs.stringify(options)}`, { credentials: 'include' })
       .then(response => response.json())
       .then(json => dispatch(receiveFiles(options, json)))
       .catch(reason => dispatch(failReceiveFiles(reason)));
@@ -77,6 +77,7 @@ export function tryDeleteFiles(selected, results) {
     });
     return fetch(`${BASE}delete`, {
       method: 'POST',
+      credentials: 'include',
       body: ids.join(',')
     }).then((res) => {
       if (res.status !== 200) {

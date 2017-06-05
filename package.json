@@ -10,7 +10,6 @@
   "dependencies": {
     "@slack/client": "^3.9.0",
     "body-parser": "^1.17.2",
-    "cookie-parser": "^1.4.3",
     "dotenv": "^4.0.0",
     "es6-promise-pool": "^2.4.6",
     "express": "^4.15.3",

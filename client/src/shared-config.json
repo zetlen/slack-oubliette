@@ -1,4 +1,5 @@
 {
     "thumbSize": 80,
-    "deleteConcurrency": 32
+    "deleteConcurrency": 32,
+    "clientId": "6649135424.187545948071"
 }

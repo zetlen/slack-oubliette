@@ -5,6 +5,7 @@ import { bindActionCreators } from "redux";
 import { Toolbar } from "react-data-grid-addons";
 import { connect } from "react-redux";
 import { tryDeleteFiles } from "./actions";
+import Iconography from "./Iconography";
 
 const DeleteButton = glamorous.button({
   marginRight: "8px",
@@ -56,22 +57,7 @@ class FilesToolbar extends Toolbar {
         <LeftTools>
           {this.props.results &&
             <Summary>
-              <img
-                src="./slack-icon.png"
-                alt="#"
-                style={{
-                  height: 24,
-                  width: 24,
-                  verticalAlign: "middle"
-                }}
-              />
-              <span
-                role="img"
-                aria-label="oubliette"
-                style={{ fontSize: "24px" }}
-              >
-                🔮
-              </span>
+              <Iconography size="24" />
               <span>Displaying </span>
               <strong>{this.props.results.count}
               {" "}</strong>

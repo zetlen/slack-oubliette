@@ -19,6 +19,7 @@ import { selectFile } from "./actions";
 import filterParameter from "./filterParameter";
 import DateRangeFilter from "./DateRangeFilter";
 import MediaFormatter from "./MediaFormatter";
+import Iconography from "./Iconography";
 
 const { AutoCompleteFilter, SingleSelectFilter } = Filters;
 
@@ -42,10 +43,10 @@ const columns = [
     formatter: ({ value, dependentValues }) =>
       value !== dependentValues.title
         ? <span>
-            <strong>{value}</strong>
-            <br />
-            <span>{dependentValues.title}</span>
-          </span>
+          <strong>{value}</strong>
+          <br />
+          <span>{dependentValues.title}</span>
+        </span>
         : <span><strong>{value}</strong></span>
   },
   {
@@ -116,13 +117,18 @@ const Spinner = glamorous.div(
   })
 );
 
+const loginButtonCss = css({
+  display: 'block',
+  margin: '40px auto',
+  textAlign: 'center',
+  '&:hover': {
+    textDecoration: 'none !important'
+  }
+})
 const LoginButton = () =>
-  <a href="https://slack.com/oauth/authorize?scope=identity.basic&client_id=6649135424.187545948071">
-    <img
-      style={{
-        display: 'block',
-        margin: '80px auto',
-      }}
+  <a {...loginButtonCss} href={`https://slack.com/oauth/authorize?scope=identity.basic&client_id=${sharedConfig.clientId}`}>
+    <Iconography size={48} />
+    <img {...loginButtonCss}
       alt="Sign in with Slack"
       height="40"
       width="172"
@@ -131,15 +137,9 @@ const LoginButton = () =>
     />
   </a>;
 
-// function logevt(evt) {
-//   return {
-//     [evt]: console.log.bind(console, evt)
-//   };
-// }
-
 const gridProps = {
   columns,
-  rowGetter: () => {},
+  rowGetter: () => { },
   rowsCount: 0,
   enableCellSelect: false,
   rowHeight: sharedConfig.thumbSize,
@@ -152,14 +152,6 @@ const waiting = (
     {...gridProps}
     toolbar={<FilesToolbar enableFilter={true} filterRowsButtonText="🔍" />}
     emptyRowsView={Spinner}
-  />
-);
-
-const mustLogin = (
-  <ReactDataGrid
-    {...gridProps}
-    toolbar={<FilesToolbar enableFilter={true} filterRowsButtonText="🔍" />}
-    emptyRowsView={LoginButton}
   />
 );
 
@@ -228,8 +220,7 @@ class FilesGrid extends Component {
       this.props.router.removeQueryParam("filter");
     }
   }
-  _clearFilters(arg1, arg2, arg3) {
-    console.log(arg1, arg2, arg3);
+  _clearFilters() {
     this.props.router.removeQueryParam("filter");
   }
   _getValidFilterValues(column) {
@@ -251,7 +242,7 @@ class FilesGrid extends Component {
   render() {
     const { results, selected, unauthorized } = this.props;
     if (unauthorized) {
-      return mustLogin;
+      return <LoginButton />;
     }
     if (!results) {
       return waiting;
