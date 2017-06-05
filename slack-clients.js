@@ -1,5 +1,4 @@
 const slack = require("@slack/client");
-require("dotenv").config();
 
 module.exports = function SlackClients() {
   console.log("creating clients from token " + process.env.SLACK_TOKEN);

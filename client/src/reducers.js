@@ -12,10 +12,21 @@ function rootReducer(state = {}, action) {
       return {
         ...state,
         results: action.results,
-        isFetching: false
+        isFetching: false,
+        invalid: false
       };
     case actions.SELECT_FILE:
       if (state.modifiers.ctrl) {
+        const indexOfIndex = state.selected.indexOf(action.index);
+        if (indexOfIndex > -1) {
+          return {
+            ...state,
+            selected: [
+              ...state.selected.slice(0, indexOfIndex),
+              ...state.selected.slice(indexOfIndex + 1)
+            ]
+          };
+        }
         return {
           ...state,
           lastSelected: action.index,
@@ -44,6 +55,18 @@ function rootReducer(state = {}, action) {
       return {
         ...state,
         modifiers: { ctrl, shift }
+      };
+    case actions.TRY_DELETE_FILES:
+      return {
+        ...state,
+        deleting: action.ids
+      };
+    case actions.FILES_DELETED:
+      return {
+        ...state,
+        deleting: false,
+        invalid: true,
+        selected: []
       };
     default:
       return state;

@@ -3,16 +3,19 @@ import { connect } from "react-redux";
 import defer from "lodash/defer";
 import FilesGrid from "./FilesGrid";
 import glamorous from "glamorous";
-import { fetchFilesIfNeeded, pickModifierKeys, setModifierKeys } from "./actions";
-import sharedConfig from "./shared-config";
+import {
+  fetchFilesIfNeeded,
+  pickModifierKeys,
+  setModifierKeys
+} from "./actions";
 
 const Main = glamorous.div({
-  // position: 'fixed',
-  // height: '100%',
-  // width: '100%'
-  "& .react-grid-image": {
-    width: `${sharedConfig.thumbSize}px`,
-    height: `${sharedConfig.thumbSize}px`
+  "& .react-grid-HeaderRow:first-child .react-grid-HeaderCell": {
+    "fontSize": "2em",
+    "padding": "0 8px",
+    '& .pull-right': {
+      fontSize: ".8em"
+    }
   },
   "& .react-grid-Cell:focus": {
     outlineWidth: 0
@@ -37,10 +40,20 @@ class App extends Component {
     });
   }
 
+  componentWillReceiveProps({ invalid }) {
+    if (invalid) {
+      this.refresh();
+    }
+  }
+
   render() {
     return (
       <Main>
-        <FilesGrid results={this.props.results} />
+        <FilesGrid
+          ranges={this.props.ranges}
+          router={this.props.router}
+          results={this.props.results}
+        />
       </Main>
     );
   }
@@ -54,4 +67,4 @@ class App extends Component {
   }
 }
 
-export default connect()(App);
+export default connect(({ invalid }) => ({ invalid }))(App);

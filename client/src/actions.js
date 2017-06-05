@@ -5,6 +5,9 @@ export const REQUEST_FILES = "REQUEST_FILES";
 export const RECEIVE_FILES = "RECEIVE_FILES";
 export const SELECT_FILE = "SELECT_FILE";
 export const SET_MODIFIER_KEYS = "SET_MODIFIER_KEYS";
+export const TRY_DELETE_FILES = "TRY_DELETE_FILES";
+export const FAIL_DELETE_FILES = "FAIL_DELETE_FILES";
+export const FILES_DELETED = "FILES_DELETED";
 
 const BASE = "/files/";
 
@@ -33,11 +36,12 @@ function fetchFiles(options) {
 }
 
 function shouldFetchFiles(state) {
-  if (!state.results) {
+  if (!state.results || state.invalid) {
     return true;
   } else if (state.isFetching) {
     return false;
   }
+  return true;
 }
 
 export function fetchFilesIfNeeded(options) {
@@ -53,6 +57,37 @@ export function selectFile(index) {
     type: SELECT_FILE,
     index
   };
+}
+
+export function tryDeleteFiles(selected, results) {
+  const ids = selected.map((i) => results.items[i].id);
+  return (dispatch) => {
+    dispatch({
+      type: TRY_DELETE_FILES,
+      ids
+    });
+    return fetch(`${BASE}delete`, {
+      method: 'POST',
+      body: ids.join(',')
+    }).then((res) => {
+      if (res.status !== 200) {
+        dispatch({
+          type: FAIL_DELETE_FILES,
+          reason: res.statusText
+        })
+      } else {
+        dispatch({
+          type: FILES_DELETED,
+          count: selected.length
+        });
+      }
+    }).catch((reason) => {
+      dispatch({
+        type: FAIL_DELETE_FILES,
+        reason: reason.toString()
+      })
+    })
+  }
 }
 
 export const pickModifierKeys = pick(['ctrlKey', 'metaKey', 'shiftKey']);
