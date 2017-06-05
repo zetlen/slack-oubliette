@@ -7,9 +7,12 @@ const Filter = require("./filter");
 const pick = require("lodash/fp/pick");
 const humanize = require("humanize");
 const passport = require("passport");
-const SlackStrategy = require("passport-slack").Strategy;
+const SlackStrategy = require("./slack-passport-strategy");
 // const apicache = require("apicache");
 const bodyParser = require("body-parser");
+const cookieParser = require("cookie-parser");
+const session = require("express-session");
+const PromisePool = require("es6-promise-pool");
 const sharedConfig = require("./client/src/shared-config.json");
 
 console.log("Starting up...");
@@ -21,27 +24,37 @@ passport.use(
   new SlackStrategy(
     {
       clientID: process.env.SLACK_CLIENT_ID,
-      clientSecret: process.env.SLACK_CLIENT_SECRET
+      clientSecret: process.env.SLACK_CLIENT_SECRET,
+      scope: ["identity.basic"]
     },
     function(accessToken, refreshToken, profile, done) {
       // optionally persist profile data
+      console.log(accessToken, refreshToken, profile);
       done(null, profile);
     }
   )
 );
 
+var secret = "you have no power over me";
+
+app.use(require("body-parser").urlencoded({ extended: true }));
+app.use(cookieParser(secret));
+app.use(session({ secret: secret }));
 app.use(passport.initialize());
-app.use(require('body-parser').urlencoded({ extended: true }));
+app.use(passport.session());
 
-app.get("/auth/slack", passport.authorize("slack"));
+passport.serializeUser(function(profile, done) {
+  console.log('i serialized', profile.user.id);
+  done(null, profile.user.id);
+});
 
-app.get(
-  "/slack_redirect",
-  passport.authorize("slack", { failureRedirect: "/login" }),
-  function(req, res) {
-    res.redirect("/");
-  }
-);
+passport.deserializeUser(function(id, done) {
+  console.log('to deserialize ', id);
+  clients.web.users.info(id, function(err, user) {
+  console.log('i deserialized ', user, err);
+    done(err, user);
+  });
+});
 
 const attrs = [
   "id",
@@ -117,17 +130,35 @@ app.use(bodyParser.text());
 
 app.post("/files/delete", function(req, res) {
   var toDelete = req.body.split(",");
-  console.log("deleting " + toDelete.length);
-  console.log("from " + records.length);
-  records = records.filter(({ id }) => toDelete.every(did => did !== id));
-  console.log("results in " + records.length);
-  // apicache.clear();
-  res.status(200).end();
+  function deletor() {
+    var next = toDelete.pop();
+    if (!next) {
+      return null;
+    }
+    console.log("Attempting to delete " + toDelete);
+    return clients.web.files.delete(next).then(function() {
+      console.log("Successfully deleted " + toDelete);
+    });
+  }
+  var concurrency =
+    process.env.DELETE_CONCURRENCY || sharedConfig.deleteConcurrency;
+  var pool = new PromisePool(deletor, concurrency);
+  var poolPromise = pool.start();
+  poolPromise
+    .then(function() {
+      res.status(200).end();
+    })
+    .catch(function(err) {
+      res.status(500).send(err.toString());
+    });
 });
 
 app.get(
   "/files",
   /*cache, */ function(req, res) {
+    if (!req.user) {
+      return res.status(401).end();
+    }
     if (!records) {
       return res.status(503).send("Cache warming up. Please wait.");
     }
@@ -200,6 +231,24 @@ app.get(
       ranges,
       items
     });
+  }
+);
+
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static("client/build"));
+}
+
+const autt = passport.authorize("slack", { successRedirect: "/" });
+function proxyauth() {
+  return autt.apply(this, arguments);
+}
+
+app.get(
+  "/slack_redirect",
+  proxyauth,
+  function(req, res) {
+    console.log("Redirecting to root");
+    res.redirect("/");
   }
 );
 

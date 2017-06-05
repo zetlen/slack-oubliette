@@ -116,6 +116,21 @@ const Spinner = glamorous.div(
   })
 );
 
+const LoginButton = () =>
+  <a href="https://slack.com/oauth/authorize?scope=identity.basic&client_id=6649135424.187545948071">
+    <img
+      style={{
+        display: 'block',
+        margin: '80px auto',
+      }}
+      alt="Sign in with Slack"
+      height="40"
+      width="172"
+      src="https://platform.slack-edge.com/img/sign_in_with_slack.png"
+      srcSet="https://platform.slack-edge.com/img/sign_in_with_slack.png 1x, https://platform.slack-edge.com/img/sign_in_with_slack@2x.png 2x"
+    />
+  </a>;
+
 // function logevt(evt) {
 //   return {
 //     [evt]: console.log.bind(console, evt)
@@ -137,6 +152,14 @@ const waiting = (
     {...gridProps}
     toolbar={<FilesToolbar enableFilter={true} filterRowsButtonText="🔍" />}
     emptyRowsView={Spinner}
+  />
+);
+
+const mustLogin = (
+  <ReactDataGrid
+    {...gridProps}
+    toolbar={<FilesToolbar enableFilter={true} filterRowsButtonText="🔍" />}
+    emptyRowsView={LoginButton}
   />
 );
 
@@ -226,35 +249,39 @@ class FilesGrid extends Component {
     }
   }
   render() {
-    const { results, selected } = this.props;
-    return results
-      ? <ReactDataGrid
-          {...gridProps}
-          ref={this._captureGridRef}
-          minHeight={this.state.height}
-          rowSelection={{
-            showCheckbox: false,
-            selectBy: {
-              indexes: selected || []
-            }
-          }}
-          rowGetter={i => results.items[i]}
-          rowsCount={results.items.length}
-          onRowClick={this._select}
-          onGridSort={this._sort}
-          onAddFilter={this._filter}
-          onClearFilters={this._clearFilters}
-          getValidFilterValues={this._getValidFilterValues}
-          toolbar={
-            <FilesToolbar enableFilter={true} filterRowsButtonText="🔍" />
+    const { results, selected, unauthorized } = this.props;
+    if (unauthorized) {
+      return mustLogin;
+    }
+    if (!results) {
+      return waiting;
+    }
+    return (
+      <ReactDataGrid
+        {...gridProps}
+        ref={this._captureGridRef}
+        minHeight={this.state.height}
+        rowSelection={{
+          showCheckbox: false,
+          selectBy: {
+            indexes: selected || []
           }
-        />
-      : waiting;
+        }}
+        rowGetter={i => results.items[i]}
+        rowsCount={results.items.length}
+        onRowClick={this._select}
+        onGridSort={this._sort}
+        onAddFilter={this._filter}
+        onClearFilters={this._clearFilters}
+        getValidFilterValues={this._getValidFilterValues}
+        toolbar={<FilesToolbar enableFilter={true} filterRowsButtonText="🔍" />}
+      />
+    );
   }
 }
 
-function getResults({ results, ranges, selected }) {
-  return { results, ranges, selected };
+function getResults({ results, ranges, selected, unauthorized }) {
+  return { results, ranges, selected, unauthorized };
 }
 
 function provideActions(dispatch) {

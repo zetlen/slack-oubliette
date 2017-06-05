@@ -1,3 +1,4 @@
 {
-    "thumbSize": 80
+    "thumbSize": 80,
+    "deleteConcurrency": 32
 }

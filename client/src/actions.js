@@ -3,6 +3,7 @@ import pick from "lodash/fp/pick";
 
 export const REQUEST_FILES = "REQUEST_FILES";
 export const RECEIVE_FILES = "RECEIVE_FILES";
+export const FAIL_RECEIVE_FILES = "FAIL_RECEIVE_FILES";
 export const SELECT_FILE = "SELECT_FILE";
 export const SET_MODIFIER_KEYS = "SET_MODIFIER_KEYS";
 export const TRY_DELETE_FILES = "TRY_DELETE_FILES";
@@ -26,12 +27,20 @@ function receiveFiles(options, results) {
   };
 }
 
+function failReceiveFiles(reason) {
+  return {
+    type: FAIL_RECEIVE_FILES,
+    reason: reason.toString()
+  };
+}
+
 function fetchFiles(options) {
   return dispatch => {
     dispatch(requestFiles(options));
     return fetch(`${BASE}?${qs.stringify(options)}`)
       .then(response => response.json())
-      .then(json => dispatch(receiveFiles(options, json)));
+      .then(json => dispatch(receiveFiles(options, json)))
+      .catch(reason => dispatch(failReceiveFiles(reason)));
   };
 }
 

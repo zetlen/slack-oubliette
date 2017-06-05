@@ -15,6 +15,12 @@ function rootReducer(state = {}, action) {
         isFetching: false,
         invalid: false
       };
+    case actions.FAIL_RECEIVE_FILES:
+      return {
+        ...state,
+        isFetching: false,
+        unauthorized: true
+      };
     case actions.SELECT_FILE:
       if (state.modifiers.ctrl) {
         const indexOfIndex = state.selected.indexOf(action.index);

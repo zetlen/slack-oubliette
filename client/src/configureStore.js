@@ -3,7 +3,13 @@ import thunkMiddleware from "redux-thunk";
 import { createLogger } from "redux-logger";
 import rootReducer from "./reducers";
 
-const loggerMiddleware = createLogger();
+let middleware;
+if (process.env.NODE_ENV === "production") {
+  middleware = applyMiddleware(thunkMiddleware);
+} else {
+  const loggerMiddleware = createLogger();
+  middleware = applyMiddleware(thunkMiddleware, loggerMiddleware);
+}
 
 export default function configureStore() {
   return createStore(
@@ -13,6 +19,6 @@ export default function configureStore() {
       selected: [],
       lastSelected: -1
     },
-    applyMiddleware(thunkMiddleware, loggerMiddleware)
+    middleware
   );
 }

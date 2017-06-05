@@ -62,7 +62,8 @@ module.exports = function SlackInfo(clients, recordSelector) {
     }
   );
   function rtmEventStream(name) {
-    return Observable.fromEvent(clients.rtm, name);
+    return Observable.fromEvent(clients.rtm, name)
+      .do((e) => console.log('Observed ' + name, e));
   }
   const changes = {
     files$: Observable.merge(FILE_EVENTS.map(rtmEventStream))
