@@ -36,7 +36,6 @@ passport.serializeUser(function (profile, done) {
 
 passport.deserializeUser(function (id, done) {
   clients.web.users.info(id, function (err, profile) {
-    console.log('deserialized user @' + profile.user.name);
     done(err, profile);
   });
 });
@@ -44,8 +43,7 @@ passport.deserializeUser(function (id, done) {
 var secret = "you have no power over me";
 
 app.use(require("body-parser").urlencoded({ extended: true }));
-// app.use(session({ secret: secret, resave: false, rolling: true, saveUninitialized: false }));
-app.use(session({ secret: secret }));
+app.use(session({ secret: secret, resave: false, rolling: true, saveUninitialized: false }));
 app.use(passport.initialize());
 app.use(passport.session());
 
