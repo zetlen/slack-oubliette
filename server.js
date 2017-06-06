@@ -10,7 +10,7 @@ const passport = require("passport");
 const SlackStrategy = require("./slack-passport-strategy");
 const bodyParser = require("body-parser");
 const session = require("express-session");
-const PromisePool = require("es6-promise-pool");
+const requestPool = require('./request-pool');
 const sharedConfig = require("./client/src/shared-config.json");
 
 console.log("Starting up...");
@@ -112,33 +112,31 @@ app.use(bodyParser.text());
 
 app.post("/files/delete", function (req, res) {
   var toDelete = req.body.split(",");
-  function deletor() {
-    var next = toDelete.pop();
-    if (!next) {
-      return null;
-    }
-    console.log("Attempting to delete " + toDelete);
-    return clients.web.files.delete(next).then(function () {
-      console.log("Successfully deleted " + toDelete);
-      pending = true;
-    });
-  }
-  var concurrency =
-    process.env.DELETE_CONCURRENCY || sharedConfig.deleteConcurrency;
-  var pool = new PromisePool(deletor, concurrency);
-  var poolPromise = pool.start();
-  poolPromise
-    .then(function () {
-      res.status(200).end();
-    })
-    .catch(function (err) {
+  requestPool(
+    process.env.DELETE_CONCURRENCY || sharedConfig.deleteConcurrency,
+    toDelete,
+    function deleteOne(id) {
+      console.log("Attempting to delete " + id);
+      return clients.web.files.delete(id)
+        .then(function () { return id; });
+    },
+    function deleted(id) {
+      console.log("Successfully deleted " + id);
+    },
+    function errored(err) {
+      console.error(err);
       res.status(500).send(err.toString());
-    });
+    },
+    function allDeleted() {
+      console.log("Deleted " + toDelete.length + " files");
+      res.status(200).end();
+    }
+  );
 });
 
 app.get(
   "/files",
-  /*cache, */ function getFiles(req, res) {
+  function getFiles(req, res) {
     if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
