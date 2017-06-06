@@ -93,13 +93,14 @@ const streams = SlackStreams(clients, toRecord);
 var records;
 var error;
 var pending = false;
+function receiveNewRecords(latest) {
+  error = null;
+  records = latest;
+  pending = false;
+  console.log(`Received ${records.length} new records from stream`);
+}
 streams.records$.subscribe(
-  function (latest) {
-    error = null;
-    records = latest;
-    pending = false;
-    console.log(`Received ${records.length} new records from stream`);
-  },
+  receiveNewRecords,
   function (e) {
     error = e;
     pending = false;
@@ -147,7 +148,7 @@ app.get(
     if (pending) {
       var subscription = streams.records$.subscribe(function(latest) {
         subscription.unsubscribe();
-        records = latest;
+        receiveNewRecords(latest);
         getFiles(req, res);
       });
       return;
