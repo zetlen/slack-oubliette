@@ -22,10 +22,10 @@ passport.use(
     {
       clientID: process.env.SLACK_CLIENT_ID,
       clientSecret: process.env.SLACK_CLIENT_SECRET,
-      scope: ["identity.basic"]
+      scope: sharedConfig.scopes
     },
     function (accessToken, refreshToken, profile, done) {
-      done(null, profile);
+      done(null, Object.assign({}, profile, { accessToken: accessToken }));
     }
   )
 );
@@ -56,7 +56,10 @@ const attrs = [
   "size",
   `thumb_${sharedConfig.thumbSize}`,
   "url_private",
-  "username"
+  "username",
+  "channels",
+  "groups",
+  "ims"
 ];
 
 const totalOn = ["filetype", "username"];
@@ -74,12 +77,7 @@ function totalize(items) {
 const toRecord = pick(attrs);
 
 console.log("Creating sorters...");
-const sorters = Sorters(attrs, {
-  exceptions: {
-    channels: Sorters.lexical("length"),
-    pinned_to: Sorters.lexical("length")
-  }
-});
+const sorters = Sorters(attrs);
 
 console.log("Creating filter...");
 const filterOn = Filter();
@@ -88,7 +86,7 @@ console.log("Creating Slack clients...");
 const clients = SlackClients();
 
 console.log("Initial files cache load...");
-const streams = SlackStreams(clients, toRecord);
+const streams = SlackStreams(clients);
 
 var records;
 var error;
@@ -137,6 +135,7 @@ app.post("/files/delete", function (req, res) {
 app.get(
   "/files",
   function getFiles(req, res) {
+    console.log(req.user);
     if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
@@ -144,7 +143,7 @@ app.get(
       return res.status(503).send("Cache warming up. Please wait.");
     }
     if (pending) {
-      var subscription = streams.records$.subscribe(function(latest) {
+      var subscription = streams.records$.subscribe(function (latest) {
         subscription.unsubscribe();
         receiveNewRecords(latest);
         getFiles(req, res);

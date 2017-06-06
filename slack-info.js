@@ -33,7 +33,7 @@ function makeMaps(list) {
   };
 }
 
-module.exports = function SlackInfo(clients, recordSelector) {
+module.exports = function SlackInfo(clients) {
   const getUsers = depaginate(
     function(page, callback) {
       clients.web.users.list({ page, count: 500 }, callback);
@@ -102,7 +102,7 @@ module.exports = function SlackInfo(clients, recordSelector) {
       if (file.pinned_to) {
         record.pinned_to = file.pinned_to.map(toChannelName);
       }
-      return recordSelector(record);
+      return record;
     });
   });
   return { channels$, users$, files$, records$ };
