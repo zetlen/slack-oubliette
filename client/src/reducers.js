@@ -3,6 +3,11 @@ import range from "lodash/range";
 
 function rootReducer(state = {}, action) {
   switch (action.type) {
+    case actions.AUTHORIZED:
+      return {
+        ...state,
+        userId: action.id
+      };
     case actions.REQUEST_FILES:
       return {
         ...state,
@@ -13,8 +18,9 @@ function rootReducer(state = {}, action) {
         ...state,
         results: action.results,
         isFetching: false,
-        invalid: false
+        deleted: []
       };
+    case actions.UNAUTHORIZED:
     case actions.FAIL_RECEIVE_FILES:
       return {
         ...state,
@@ -71,7 +77,7 @@ function rootReducer(state = {}, action) {
       return {
         ...state,
         deleting: false,
-        invalid: true,
+        deleted: action.ids,
         selected: []
       };
     default:

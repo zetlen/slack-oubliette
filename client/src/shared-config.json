@@ -4,7 +4,6 @@
     "clientId": "6649135424.187545948071",
     "authPath": "/slack_redirect",
     "scopes": [
-        "identity.basic",
         "channels:read",
         "files:read",
         "files:write:user",

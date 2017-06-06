@@ -19,7 +19,7 @@ import { selectFile } from "./actions";
 import filterParameter from "./filterParameter";
 import DateRangeFilter from "./DateRangeFilter";
 import MediaFormatter from "./MediaFormatter";
-import LoginButton from "./LoginButton";
+import ValidityRowRenderer from "./ValidityRowRenderer";
 
 const { AutoCompleteFilter, SingleSelectFilter } = Filters;
 
@@ -150,14 +150,6 @@ class FilesGrid extends Component {
     this.state = {
       height: window.innerHeight
     };
-    window.addEventListener(
-      "resize",
-      throttle(() => {
-        this.setState({
-          height: window.innerHeight
-        });
-      }, 200)
-    );
   }
   _select(i) {
     if (i !== -1) {
@@ -212,6 +204,14 @@ class FilesGrid extends Component {
     return uniq(this.props.results.items, prop).map(prop);
   }
   componentDidMount() {
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        this.setState({
+          height: window.innerHeight
+        });
+      }, 200)
+    );
     if (this.props.sortColumn && this.props.sortDirection) {
       this._grid.setState({
         sortColumn: this.props.sortColumn,
@@ -220,10 +220,7 @@ class FilesGrid extends Component {
     }
   }
   render() {
-    const { results, selected, unauthorized } = this.props;
-    if (unauthorized) {
-      return <LoginButton />;
-    }
+    const { results, selected } = this.props;
     if (!results) {
       return waiting;
     }
@@ -246,13 +243,14 @@ class FilesGrid extends Component {
         onClearFilters={this._clearFilters}
         getValidFilterValues={this._getValidFilterValues}
         toolbar={<FilesToolbar enableFilter={true} filterRowsButtonText="🔍" />}
+        rowRenderer={ValidityRowRenderer}
       />
     );
   }
 }
 
-function getResults({ results, ranges, selected, unauthorized }) {
-  return { results, ranges, selected, unauthorized };
+function getResults({ results, ranges, selected }) {
+  return { results, ranges, selected };
 }
 
 function provideActions(dispatch) {

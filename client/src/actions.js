@@ -9,8 +9,22 @@ export const SET_MODIFIER_KEYS = "SET_MODIFIER_KEYS";
 export const TRY_DELETE_FILES = "TRY_DELETE_FILES";
 export const FAIL_DELETE_FILES = "FAIL_DELETE_FILES";
 export const FILES_DELETED = "FILES_DELETED";
+export const AUTHORIZED = "AUTHORIZED";
+export const UNAUTHORIZED = "UNAUTHORIZED";
 
 const BASE = "/files/";
+
+export function identifyWithServer() {
+  return dispatch => fetch('/whoami', { credentials: 'include' })
+    .then(response => response.text().then(id => {
+      if (response.status !== 200) {
+        dispatch({ type: UNAUTHORIZED });
+      } else {
+        dispatch({ type: AUTHORIZED, id });
+      }
+    }))
+    .catch(() => dispatch({ type: UNAUTHORIZED }));
+}
 
 function requestFiles(options) {
   return {
@@ -88,7 +102,7 @@ export function tryDeleteFiles(selected, results) {
       } else {
         dispatch({
           type: FILES_DELETED,
-          count: selected.length
+          ids
         });
       }
     }).catch((reason) => {

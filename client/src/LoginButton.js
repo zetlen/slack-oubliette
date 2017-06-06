@@ -15,7 +15,7 @@ const loginButtonCss = css({
 
 const { protocol, host } = window.location;
 const params = qs.stringify({
-    scope: sharedConfig.scopes.join(","),
+    scope: "identity.basic",
     client_id: sharedConfig.clientId,
     redirect_uri: `${protocol}//${host}${sharedConfig.authPath}`
 });
