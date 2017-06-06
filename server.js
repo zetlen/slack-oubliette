@@ -228,13 +228,11 @@ if (process.env.NODE_ENV === "production" || process.env.DEBUG_OAUTH) {
 }
 
 app.get(
-  "/slack_redirect",
+  sharedConfig.authPath,
   passport.authenticate('slack'),
-  function (req, res) {
-    console.log("Redirecting to root");
-    res.redirect("/");
-  }
+  function (req, res) { res.redirect("/"); }
 );
+
 var port = process.env.PORT || 4001;
 app.listen(port);
 console.log("listening on port " + port);

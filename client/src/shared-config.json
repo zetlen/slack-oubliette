@@ -1,5 +1,6 @@
 {
     "thumbSize": 80,
     "deleteConcurrency": 32,
-    "clientId": "6649135424.187545948071"
+    "clientId": "6649135424.187545948071",
+    "authPath": "/slack_redirect"
 }

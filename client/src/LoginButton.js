@@ -17,7 +17,7 @@ const { protocol, host } = window.location;
 const params = qs.stringify({
     scope: "identity.basic",
     client_id: sharedConfig.clientId,
-    redirect_uri: `${protocol}//${host}/slack_redirect`
+    redirect_uri: `${protocol}//${host}${sharedConfig.authPath}`
 });
 
 export default function LoginButton() {

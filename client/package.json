@@ -29,5 +29,18 @@
     "test": "react-scripts test --env=jsdom",
     "eject": "react-scripts eject"
   },
-  "proxy": "http://localhost:4001/"
+  "proxy": {
+    "/slack_redirect": {
+      "target": "http://localhost:4001/",
+      "secure": false
+    },
+    "/files": {
+      "target": "http://localhost:4001/",
+      "secure": false
+    },
+    "/files/delete": {
+      "target": "http://localhost:4001/",
+      "secure": false
+    }
+  }
 }
