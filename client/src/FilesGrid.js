@@ -19,7 +19,7 @@ import { selectFile } from "./actions";
 import filterParameter from "./filterParameter";
 import DateRangeFilter from "./DateRangeFilter";
 import MediaFormatter from "./MediaFormatter";
-import Iconography from "./Iconography";
+import LoginButton from "./LoginButton";
 
 const { AutoCompleteFilter, SingleSelectFilter } = Filters;
 
@@ -116,26 +116,6 @@ const Spinner = glamorous.div(
     content: "'🤔'"
   })
 );
-
-const loginButtonCss = css({
-  display: 'block',
-  margin: '40px auto',
-  textAlign: 'center',
-  '&:hover': {
-    textDecoration: 'none !important'
-  }
-})
-const LoginButton = () =>
-  <a {...loginButtonCss} href={`https://slack.com/oauth/authorize?scope=identity.basic&client_id=${sharedConfig.clientId}`}>
-    <Iconography size={48} />
-    <img {...loginButtonCss}
-      alt="Sign in with Slack"
-      height="40"
-      width="172"
-      src="https://platform.slack-edge.com/img/sign_in_with_slack.png"
-      srcSet="https://platform.slack-edge.com/img/sign_in_with_slack.png 1x, https://platform.slack-edge.com/img/sign_in_with_slack@2x.png 2x"
-    />
-  </a>;
 
 const gridProps = {
   columns,
