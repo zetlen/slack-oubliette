@@ -105,32 +105,29 @@ app.post("/files/delete", function (req, res) {
   if (!req.user) {
     return res.status(401).send("Unauthorized");
   }
+  if (!req.user.client) {
+    return res.status(500).send("Missing access token for user");
+  }
   var toDelete = req.body.split(",");
-  UserData.getByRequest(req, 'accessToken').then(function (accessToken) {
-    if (!accessToken) {
-      return res.status(500).send("Missing access token for user");
+  requestPool(
+    process.env.DELETE_CONCURRENCY || sharedConfig.deleteConcurrency,
+    toDelete,
+    function deleteOne(id) {
+      console.log("Attempting to delete " + id);
+      return req.user.client.files.delete(id).then(function () { return id; });
+    },
+    function deleted(id) {
+      console.log("Successfully deleted " + id);
+    },
+    function errored(err) {
+      console.error(err);
+      res.status(500).send(err.toString());
+    },
+    function allDeleted() {
+      console.log("Deleted " + toDelete.length + " files");
+      res.status(200).end();
     }
-    var deleteClient = new slack.WebClient(accessToken);
-    requestPool(
-      process.env.DELETE_CONCURRENCY || sharedConfig.deleteConcurrency,
-      toDelete,
-      function deleteOne(id) {
-        console.log("Attempting to delete " + id);
-        return deleteClient.files.delete(id).then(function () { return id; });
-      },
-      function deleted(id) {
-        console.log("Successfully deleted " + id);
-      },
-      function errored(err) {
-        console.error(err);
-        res.status(500).send(err.toString());
-      },
-      function allDeleted() {
-        console.log("Deleted " + toDelete.length + " files");
-        res.status(200).end();
-      }
-    );
-  });
+  );
 });
 
 app.get("/files", function getFiles(req, res) {
