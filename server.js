@@ -1,26 +1,26 @@
 require("dotenv").config();
 const http = require('http');
 const express = require("express");
-const slack = require("@slack/client");
 const SlackBotClients = require("./slack-clients");
-const SlackFullFileRecordsStream = require("./slack-full-file-records-stream");
-const SlackChannelsStream = require('./slack-channels-stream');
-const SlackUsersStream = require('./slack-users-stream');
-const SlackFilesStream = require('./slack-files-stream');
+const slack = require("@slack/client");
 const pick = require("lodash/fp/pick");
 const passport = require("passport");
 const SlackStrategy = require("./slack-passport-strategy");
 const bodyParser = require("body-parser");
 const session = require("express-session");
+const uuid = require('./uuid');
 const UserData = require('./user-data');
 const requestPool = require('./request-pool');
 const Summarizer = require('./summarizer');
 const UpdateNotifier = require('./update-notifier');
+const UserRecordsFetcher = require('./user-records-fetcher');
 const sharedConfig = require("./client/src/shared-config.json");
 
 console.log("Starting up...");
 const app = express();
 const server = http.createServer(app);
+
+console.log('Creating UpdateNotifier server...');
 const notifyUpdates = UpdateNotifier(server);
 
 console.log("Creating Slack bot clients...");
@@ -32,23 +32,38 @@ passport.use(
     {
       clientID: process.env.SLACK_CLIENT_ID,
       clientSecret: process.env.SLACK_CLIENT_SECRET,
-      scope: sharedConfig.scopes
+      scope: sharedConfig.scopes,
+      skipUserProfile: true
     },
     function (accessToken, refreshToken, profile, done) {
-      UserData.setById(profile.user.id, 'accessToken', accessToken)
-        .then(done.bind(null, null, profile));
+      const id = uuid();
+      UserData.setById(id, 'accessToken', accessToken)
+        .then(done.bind(null, null, id));
     }
   )
 );
 
-passport.serializeUser(function (profile, done) {
-  done(null, profile.user.id);
+passport.serializeUser(function (id, done) {
+  done(null, id);
 });
 
 passport.deserializeUser(function (id, done) {
-  botClients.web.users.info(id, function (err, res) {
-    done(err, res.user);
-  });
+  Promise.all([
+    UserData.getById(id, 'accessToken'),
+    UserData.getById(id, 'records')
+  ]).then(
+    function (data) {
+      done(null, {
+        id: id,
+        client: new slack.WebClient(data[0]),
+        records: data[1]
+      });
+    },
+    done
+    );
+  // botClients.web.users.info(id, function (err, res) {
+  //   done(err, res.user);
+  // });
 });
 
 var secret = "you have no power over me";
@@ -74,9 +89,8 @@ const toRecord = pick(attrs);
 
 const summarize = Summarizer(attrs);
 
-console.log("Creating shared channels and users streams...");
-const channelsMap$ = SlackChannelsStream(botClients.rtm, botClients.web);
-const usersMap$ = SlackUsersStream(botClients.rtm, botClients.web);
+console.log('Creating user records fetcher and data streams...');
+const fetchRecordsForUser = UserRecordsFetcher(botClients.rtm, botClients.web);
 
 app.use(bodyParser.text());
 
@@ -120,53 +134,39 @@ app.post("/files/delete", function (req, res) {
 });
 
 app.get("/files", function getFiles(req, res) {
+  function sendRecords(data) {
+    const result = summarize(data, req.query);
+    if (result.error) {
+      res.status(result.error.status).send(result.error.message);
+    } else {
+      res.json(result);
+    }
+  }
   if (!req.user) {
     return res.status(401).send("Unauthorized");
   }
-  Promise.all([
-    UserData.getByRequest(req, 'records'),
-    UserData.getByRequest(req, 'accessToken')
-  ]).then(function (data) {
-    var records = data[0];
-    var accessToken = data[1];
-    var id = req.user.id;
-    if (!accessToken) {
-      return res.status(500).send("Missing access token for user");
-    }
-    if (records) {
-      const result = summarize(records, req.query);
-      if (result.error) {
-        return res.status(result.error.status).send(result.error.message);
-      }
-      return res.json(result);
-    }
-    console.log('Warming up records cache for user ' + id);
-    var files$ = SlackFilesStream(
-      botClients.rtm,
-      new slack.WebClient(accessToken)
-    );
-    var records$ = SlackFullFileRecordsStream(files$, channelsMap$, usersMap$)
-      .mergeMap(function (latest) {
-        return UserData.setByRequest(req, 'records', latest)
-        .then(function() { return latest.length; });
-      })
-      .share();
-    records$.take(1).subscribe(getFiles.bind(null, req, res));
-    records$.subscribe(
-      function next(count) {
+  var id = req.user.id;
+  var records = req.user.records;
+  if (!id) {
+    return res.status(500).send("Missing user id for user");
+  }
+  if (records) {
+    sendRecords(records);
+  } else {
+    fetchRecordsForUser(
+      req.user,
+      sendRecords,
+      function next(latest) {
         console.log(
-          'Received ' + count + ' new records from stream for ' + id
+          'Received ' + latest.length + ' new records from stream for ' + id
         );
-        notifyUpdates(id, count);
+        notifyUpdates(id, latest.length);
       },
       function error(e) {
         console.error('Error retrieving full records for ' + id);
       }
     );
-  })
-  .catch(function(e) {
-    res.status(500).send('Error retrieving user data');
-  });
+  }
 });
 
 if (process.env.NODE_ENV === "production" || process.env.DEBUG_OAUTH) {

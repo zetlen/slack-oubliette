@@ -57,7 +57,7 @@ class FilesToolbar extends Toolbar {
         <LeftTools>
           {this.props.results &&
             <Summary>
-              <Iconography size="24" />
+              <Iconography size={24} />
               <span>Displaying </span>
               <strong>{this.props.results.count}
               {" "}</strong>
